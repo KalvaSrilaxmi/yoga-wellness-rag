@@ -1,0 +1,8 @@
+{
+    "appId": "com.zenyoga.app",
+    "appName": "ZenYoga AI",
+    "webDir": "dist",
+    "server": {
+        "androidScheme": "https"
+    }
+}

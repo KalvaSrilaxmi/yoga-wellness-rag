@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ZenYoga AI</string>
+    <string name="title_activity_main">ZenYoga AI</string>
+    <string name="package_name">com.zenyoga.app</string>
+    <string name="custom_url_scheme">com.zenyoga.app</string>
+</resources>
