@@ -16,11 +16,11 @@ This project follows a **Modular Monolith** pattern to ensure separation of conc
 
 *   **Frontend**: A responsive React application (Vite) utilizing Glassmorphism design principles.
 *   **Backend**: A robust Node.js/Express server handling API orchestration.
-*   **RAG Module**: A dedicated logic layer (`backend/rag.js`) responsible for knowledge ingestion, embedding generation, and context retrieval.
+*   **RAG Module**: A dedicated logic layer (`rag/rag.js`) responsible for knowledge ingestion, embedding generation, and context retrieval.
 
 ## 🧠 RAG Implementation Details
 
-To ensure the AI remains "grounded" and accruate, we utilize a Retrieval-Augmented Generation pipeline:
+To ensure the AI remains "grounded" and accurate, we utilize a Retrieval-Augmented Generation pipeline:
 
 *   **Ingestion**: 30+ curated yoga wellness articles are chunked and processed.
 *   **Vector Search**: We utilize semantic retrieval to find the most relevant context for every user query.
@@ -52,6 +52,22 @@ The following prompts were used during the agentic development process to build 
 | **Safety Guardrails** | *"Add a safety middleware that detects keywords like 'blood pressure' and blocks the request with a warning."* |
 | **Persistence Migration** | *"Update backend to use MongoDB Atlas instead of local memory. Ensure strict existence of DB connection before starting."* |
 | **Mobile Build** | *"Configure Capacitor for Android to allow this web app to be built as a native APK."* |
+| **Final Refactor** | *"Move RAG logic to a distinct /rag directory and ensure strict folder structure compliance."* |
+
+## 🛠️ Setup & Running Locally
+
+### 1. Backend
+- `cd backend && npm install`
+- Create a `.env` file with `MONGODB_URI` (Atlas link) and `PORT=5000`.
+- `npm start` (Expect: "✅ MongoDB Atlas Connected").
+
+### 2. Frontend
+- `cd frontend && npm install`
+- `npm run dev`
+
+### 3. Mobile
+- `npx cap sync`
+- `npx cap open android` (Build APK via Android Studio).
 
 ## 📥 Download
 
