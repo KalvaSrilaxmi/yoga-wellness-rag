@@ -1,0 +1,24 @@
+{
+  "name": "yoga-wellness-rag",
+  "version": "1.0.0",
+  "description": "> A full-stack, safety-first AI micro-product dealing with wellness queries, built with a \"Modular Monolith\" architecture.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KalvaSrilaxmi/yoga-wellness-rag.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/KalvaSrilaxmi/yoga-wellness-rag/issues"
+  },
+  "homepage": "https://github.com/KalvaSrilaxmi/yoga-wellness-rag#readme",
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2",
+    "uuid": "^13.0.0"
+  }
+}

@@ -3,7 +3,8 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const { connectDB, Log, Feedback } = require('./database');
 const { checkSafety } = require('./safety');
-const ragService = require('./rag');
+// Update import to point to the new dedicated RAG module
+const ragService = require('../rag/rag');
 
 dotenv.config();
 
@@ -28,16 +29,21 @@ app.post('/ask', async (req, res) => {
         const safetyResult = checkSafety(query);
         if (safetyResult.isUnsafe) {
             // Log Unsafe Query
-            await Log.create({
-                query,
-                answer: safetyResult.message,
+            // Creating log entry using required "Track B" schema
+            const logEntry = new Log({
+                userQuery: query,
+                aiAnswer: safetyResult.message,
                 isUnsafe: true,
-                sources: []
+                retrievedChunks: [],
+                timestamp: new Date()
             });
+            const savedLog = await logEntry.save();
+
             return res.json({
                 answer: safetyResult.message,
                 sources: [],
-                isUnsafe: true
+                isUnsafe: true,
+                logId: savedLog._id // Send ID for feedback
             });
         }
 
@@ -45,18 +51,21 @@ app.post('/ask', async (req, res) => {
         const { answer, sources } = await ragService.answer(query);
 
         // 3. Log Interaction
-        const logEntry = await Log.create({
-            query,
-            answer,
+        // Creating log entry using required "Track B" schema
+        const logEntry = new Log({
+            userQuery: query,
+            aiAnswer: answer,
             isUnsafe: false,
-            sources
+            retrievedChunks: sources,
+            timestamp: new Date()
         });
+        const savedLog = await logEntry.save();
 
         res.json({
             answer,
             sources,
             isUnsafe: false,
-            logId: logEntry._id
+            logId: savedLog._id
         });
 
     } catch (error) {
