@@ -6,7 +6,7 @@
 
 | **App Interface** | **Safety Guardrail** |
 | :---: | :---: |
-| ![Interface](file:///C:/Users/SHIVANI/.gemini/antigravity/brain/d3abc24c-7560-48d6-ade5-23c7d8b269a5/.system_generated/click_feedback/click_feedback_1768122052157.png) | ![Safety Warning](file:///C:/Users/SHIVANI/.gemini/antigravity/brain/d3abc24c-7560-48d6-ade5-23c7d8b269a5/.system_generated/click_feedback/click_feedback_1768122514699.png) |
+| ![Interface](assets/interface.png) | ![Safety Warning](assets/safety_warning.png) |
 
 ---
 
