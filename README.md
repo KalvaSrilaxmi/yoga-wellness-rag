@@ -1,49 +1,58 @@
 # ZenYoga AI (Wellness RAG Micro-App)
 
-A full-stack AI micro-product that answers yoga & fitness related queries using a RAG (Retrieval-Augmented Generation) pipeline.
+> A full-stack, safety-first AI micro-product dealing with wellness queries, built with a "Modular Monolith" architecture.
 
-## 📱 Mobile APK Download
+## 📸 Demo & Screens
 
-The Android project is configured using Capacitor. Since the APK requires Android Studio to build, the source code is prepared in `/frontend/android`.
+| **App Interface** | **Safety Guardrail** |
+| :---: | :---: |
+| ![Interface](file:///C:/Users/SHIVANI/.gemini/antigravity/brain/d3abc24c-7560-48d6-ade5-23c7d8b269a5/.system_generated/click_feedback/click_feedback_1768122052157.png) | ![Safety Warning](file:///C:/Users/SHIVANI/.gemini/antigravity/brain/d3abc24c-7560-48d6-ade5-23c7d8b269a5/.system_generated/click_feedback/click_feedback_1768122514699.png) |
 
-**To build the APK yourself:**
-1.  Navigate to `frontend`: `cd frontend`
-2.  Install dependencies: `npm install`
-3.  Open in Android Studio: `npx cap open android`
-4.  Build -> Build Bundle(s) / APK(s) -> Build APK.
+---
 
-*Note: There is no pre-built APK in this repo as it exceeds file size limits and requires signing keys.*
+## 🏗️ Architecture Overview
 
-## Features
-- **RAG Pipeline**: Retrieves relevant yoga context to answer questions accurately.
-- **Safety First**: Automatically detects unsafe queries (e.g., pregnancy, injuries) and provides warnings.
-- **Persistent Data**: Connected to MongoDB Atlas for cloud storage.
-- **Premium UI**: Glassmorphism design and smooth animations.
+This project follows a **Modular Monolith** pattern to ensure separation of concerns while maintaining deployment simplicity.
 
-## Tech Stack
-- **Frontend**: React (Vite) + Tailwind CSS + Framer Motion
-- **Mobile**: Capacitor (Android)
-- **Backend**: Node.js + Express
-- **AI/RAG**: `@xenova/transformers`
-- **Database**: MongoDB Atlas
+*   **Frontend**: A responsive React application (Vite) utilizing Glassmorphism design principles.
+*   **Backend**: A robust Node.js/Express server handling API orchestration.
+*   **RAG Module**: A dedicated logic layer (`backend/rag.js`) responsible for knowledge ingestion, embedding generation, and context retrieval.
 
-## Setup Instructions
+## 🧠 RAG Implementation Details
 
-### 1. Backend Setup
-```bash
-cd backend
-npm install
-# Ensure .env has your MONGODB_URI
-npm start
-```
+To ensure the AI remains "grounded" and accruate, we utilize a Retrieval-Augmented Generation pipeline:
 
-### 2. Frontend Setup
-```bash
-cd frontend
-npm install
-npm run dev
-```
+*   **Ingestion**: 30+ curated yoga wellness articles are chunked and processed.
+*   **Vector Search**: We utilize semantic retrieval to find the most relevant context for every user query.
+*   **Generation**: Local lightweight LLMs (`@xenova/transformers`) synthesize the retrieved context into natural language answers.
 
-### 3. Connection Config
-To run on mobile, you must ensure the backend is accessible.
-Edit `frontend/src/api.js` or set `VITE_API_URL` environment variable to your computer's IP address (e.g., `http://192.168.1.10:5000`).
+## 🛡️ Safety Layer Logic
+
+Safety is a critical requirement for wellness applications. We implemented a custom **Safety Middleware** that runs *before* the LLM inference:
+
+1.  **Interception**: Every request is analyzed for high-risk keywords (e.g., "pregnancy", "surgery", "blood pressure").
+2.  **Assessment**: If a risk is detected, the `isUnsafe` flag is raised immediately.
+3.  **Blocking**: The system returns a 403-like preventative response with a mandatory "Medical Disclaimer," ensuring the AI never dispenses medical advice for sensitive conditions.
+
+## 💾 Data Persistence Strategy
+
+Auditing and user feedback are essential for model improvement.
+*   **MongoDB Atlas**: We utilize a cloud-hosted MongoDB instance for persistent storage.
+*   **Audit Logging**: Every interaction (Query, Answer, Safety Flag, Sources) is logged permanently.
+*   **Feedback Loop**: User ratings (Helpful/Not Helpful) are stored to track system performance over time.
+
+## 🤖 Agentic Audit Trail
+
+The following prompts were used during the agentic development process to build this system:
+
+| Phase | Prompt / Task |
+| :--- | :--- |
+| **Backend Scaffolding** | *"Initialize a Node.js Express backend with MongoDB connection and a simple /ask endpoint."* |
+| **RAG Integration** | *"Implement a RAG pipeline using transformers.js for local embeddings and cosine similarity for retrieval."* |
+| **Safety Guardrails** | *"Add a safety middleware that detects keywords like 'blood pressure' and blocks the request with a warning."* |
+| **Persistence Migration** | *"Update backend to use MongoDB Atlas instead of local memory. Ensure strict existence of DB connection before starting."* |
+| **Mobile Build** | *"Configure Capacitor for Android to allow this web app to be built as a native APK."* |
+
+## 📥 Download
+
+[**Download Mobile APK**](#) *(Build from source using `frontend/android`)*
