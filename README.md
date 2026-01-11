@@ -71,6 +71,6 @@ The following prompts were used during the agentic development process to build 
 
 ## 📥 Mobile Download
 
-> **Note on APK Availability**: The mobile platform is fully developed and synced in `/frontend/android`. Due to environment-specific build constraints (Android SDK/Gradle), the source code is provided for evaluator verification. Please refer to the Demo Video to see the identical RAG and Safety logic in action.
+> **Success**: The APK was successfully built on this environment.
 
-[**View Android Source Code**](frontend/android) *(Build using Android Studio)*
+[**Download app-debug.apk**](mobile-release/app-debug.apk) *(Generated via Capacitor & Gradle)*
