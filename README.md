@@ -6,7 +6,7 @@
 
 | **App Interface** | **Safety Guardrail** |
 | :---: | :---: |
-| ![Interface](assets/interface.png) | ![Safety Warning](assets/safety_warning.png) |
+| ![Interface](assets/interface.png) | ![Safety Warning](assets/safety_warning_v2.png) |
 
 ---
 
