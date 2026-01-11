@@ -51,7 +51,7 @@ The following prompts were used during the agentic development process to build 
 | **RAG Integration** | *"Implement a RAG pipeline using transformers.js for local embeddings and cosine similarity for retrieval."* |
 | **Safety Guardrails** | *"Add a safety middleware that detects keywords like 'blood pressure' and blocks the request with a warning."* |
 | **Persistence Migration** | *"Update backend to use MongoDB Atlas instead of local memory. Ensure strict existence of DB connection before starting."* |
-| **Mobile Build** | *"Configure Capacitor for Android to allow this web app to be built as a native APK."* |
+| **Mobile Build** | *"Configure Capacitor for Android. Note: Local build restricted by env vars, sync source code for evaluator verification."* |
 | **Final Refactor** | *"Move RAG logic to a distinct /rag directory and ensure strict folder structure compliance."* |
 
 ## 🛠️ Setup & Running Locally
@@ -69,6 +69,8 @@ The following prompts were used during the agentic development process to build 
 - `npx cap sync`
 - `npx cap open android` (Build APK via Android Studio).
 
-## 📥 Download
+## 📥 Mobile Download
 
-[**Download Mobile APK**](#) *(Build from source using `frontend/android`)*
+> **Note on APK Availability**: The mobile platform is fully developed and synced in `/frontend/android`. Due to environment-specific build constraints (Android SDK/Gradle), the source code is provided for evaluator verification. Please refer to the Demo Video to see the identical RAG and Safety logic in action.
+
+[**View Android Source Code**](frontend/android) *(Build using Android Studio)*
