@@ -234,3 +234,62 @@ button.ask-btn:disabled {
   border-color: var(--accent-primary);
   color: white;
 }
+
+/* Icon Button Styles */
+.ask-btn.icon-btn {
+  min-width: 50px;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.send-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-left-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  #root {
+    padding: 1rem;
+    width: 100%;
+    /* Ensure full width */
+  }
+
+  .glass-panel {
+    padding: 1.5rem 1rem;
+    border-radius: 1rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .search-container {
+    flex-direction: row;
+    /* Keep row layout */
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  textarea {
+    height: 50px;
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+}
