@@ -8,6 +8,12 @@
 | :---: | :---: |
 | ![Interface](assets/interface.png) | ![Safety Warning](assets/safety_warning_v2.png) |
 
+### 📱 Mobile Walkthrough Video
+
+> **Verified Mobile Flow**: Input -> AI Response -> Feedback
+
+![Mobile Demo Flow](assets/mobile_demo.webp)
+
 ---
 
 ## 🏗️ Architecture Overview
