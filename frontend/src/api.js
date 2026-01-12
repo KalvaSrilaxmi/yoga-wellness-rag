@@ -9,9 +9,7 @@ const LOCAL_DEV_IP = '10.0.2.2'; // Standard Emulator IP for Android, works for 
 // 1. If running on Laptop (localhost), use Local Backend (Fast/Reliable).
 // 2. If running on Mobile (APK), use Public Tunnel (Bypasses Firewall).
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-// Placeholder URL - will be updated by the agent in the next step once tunnel starts
-const TUNNEL_URL = 'https://fatty-hoops-dream.loca.lt';
-const BASE_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://localhost:5001' : TUNNEL_URL);
+const BASE_URL = 'http://192.168.31.157:5001';
 const API_URL = BASE_URL;
 
 export const askQuestion = async (query) => {
