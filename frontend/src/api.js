@@ -5,7 +5,8 @@ import axios from 'axios';
 // Users can override this with VITE_API_URL in .env.local
 const LOCAL_DEV_IP = '10.0.2.2'; // Standard Emulator IP for Android, works for localhost
 // For mobile testing on real device, use your machine's LAN IP
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.31.157:5000';
+// For mobile testing on real device, use your machine's LAN IP
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://slate-baths-behave.loca.lt';
 
 const API_URL = BASE_URL;
 
