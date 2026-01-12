@@ -4,7 +4,8 @@ import axios from 'axios';
 // We must use the computer's IP address (if on same WiFi) or a public URL.
 // Users can override this with VITE_API_URL in .env.local
 const LOCAL_DEV_IP = '10.0.2.2'; // Standard Emulator IP for Android, works for localhost
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// For mobile testing on real device, use your machine's LAN IP
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.31.157:5000';
 
 const API_URL = BASE_URL;
 
