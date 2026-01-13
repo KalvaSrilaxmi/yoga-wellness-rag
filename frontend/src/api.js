@@ -22,42 +22,12 @@ export const askQuestion = async (query) => {
         });
         return response.data;
     } catch (error) {
-        // CRITICAL FIX: If it's a Safety Violation (403), throw it so the UI shows the Warning Card.
+        // If it's a Safety Violation (403), throw it so the UI shows the Warning Card.
         if (error.response && error.response.status === 403) {
             throw error;
         }
-
-        console.error('API connection failed, using DEMO MODE fallbacks:', error);
-
-        // OFF-LINE SAFETY MOCK:
-        // If the backend is dead, we STILL need to show the Safety Warning for the demo video.
-        const lowerQuery = query.toLowerCase();
-        if (lowerQuery.includes('surgery') || lowerQuery.includes('pregnant') || lowerQuery.includes('blood pressure') || lowerQuery.includes('medical')) {
-            // Throw a fake 403 error object to trigger the UI Safety Card
-            throw {
-                response: {
-                    status: 403,
-                    data: {
-                        error: "Safety Violation",
-                        details: "Medical advice regarding surgery is restricted. Please consult a doctor."
-                    }
-                }
-            };
-        }
-        // EMERGENCY FALLBACK FOR DEMO: Return a fake successful response if server is unreachable
-        // This ensures the user can submit the project even if network fails.
-        if (query.toLowerCase().includes('yoga') || query.toLowerCase().includes('benefit')) {
-            return {
-                answer: "Yoga offers numerous benefits including improved flexibility, increased muscle strength, better posture, and stress reduction. It also helps in enhancing mental clarity and emotional stability. (Offline Demo Mode)",
-                sources: ["Yoga Basics", "Health Benefits"],
-                logs: []
-            };
-        }
-        return {
-            answer: "I am unable to connect to the brain right now, but I am ready to help you with your yoga journey! Please check the server connection. (Offline Mode)",
-            sources: [],
-            logs: []
-        };
+        console.error('API Error:', error);
+        throw error;
     }
 };
 
