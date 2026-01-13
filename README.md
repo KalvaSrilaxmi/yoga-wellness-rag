@@ -84,6 +84,6 @@ The following prompts were used during the agentic development process to build 
 
 > **Note**: The APK is functional, but some backend features may not work on mobile due to environment limitations (e.g., localhost backend access). Full functionality is demonstrated in the demo video above.
 
-> **Success**: The APK was successfully built on this environment.
+
 
 [**Download app-debug.apk**](mobile-release/app-debug.apk) *(Generated via Capacitor & Gradle)*
