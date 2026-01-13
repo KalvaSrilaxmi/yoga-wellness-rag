@@ -1,6 +1,10 @@
-# ZenYoga AI (Wellness RAG Micro-App)
+# ZenYoga AI – Wellness RAG Micro-App
 
-> A full-stack, safety-first AI micro-product dealing with wellness queries, built with a "Modular Monolith" architecture.
+ZenYoga AI is an AI-powered wellness assistant designed for the *Wellness RAG Micro-App Challenge* by NextYou.  
+It provides yoga-related answers using a Retrieval-Augmented Generation (RAG) pipeline to give grounded, contextual responses.
+
+### 🎥 Demo Video
+[**Watch the Full Demo Video**](https://drive.google.com/file/d/1lCk04m_GghQYxpHoVrnrqK34endizo38/view?usp=drivesdk)
 
 ## 📸 Demo & Screens
 
@@ -76,6 +80,9 @@ The following prompts were used during the agentic development process to build 
 - `npx cap open android` (Build APK via Android Studio).
 
 ## 📥 Mobile Download
+
+
+> **Note**: The APK is functional, but some backend features may not work on mobile due to environment limitations (e.g., localhost backend access). Full functionality is demonstrated in the demo video above.
 
 > **Success**: The APK was successfully built on this environment.
 
