@@ -18,6 +18,16 @@ function App() {
       const data = await askQuestion(query);
       setResponse(data);
     } catch (error) {
+      // Check if it's a Safety Violation (Real or Mocked)
+      if (error.response && error.response.status === 403) {
+        setResponse({
+          answer: "I cannot provide an answer for this query due to safety guidelines.",
+          sources: [],
+          isUnsafe: true // Triggers the Safety UI
+        });
+        return;
+      }
+
       setResponse({
         answer: "Sorry, something went wrong. Please check your connection to the backend.",
         sources: [],
