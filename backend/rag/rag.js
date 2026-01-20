@@ -23,7 +23,7 @@ class RAGService {
 
             // Load generation model (lightweight)
             // Using LaMini-Flan-T5-248M for reasonable quality/speed balance on CPU
-            this.generator = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-248M');
+            this.generator = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-78M');
 
             // Load documents
             // Ensure path resolution is robust
