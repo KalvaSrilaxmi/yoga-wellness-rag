@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 const { connectDB, Log, Feedback } = require('./database');
 const { checkSafety } = require('./safety');
 // Update import to point to the new dedicated RAG module
-const ragService = require('../rag/rag');
+const ragService = require('./rag/rag');
 
 dotenv.config();
 
