@@ -13,16 +13,18 @@ class RAGService {
         this.generator = null;
         this.documents = [];
         this.isReady = false;
+        this.initializationError = null;
     }
 
     async initialize() {
         console.log('Initializing RAG Service...');
+        this.initializationError = null;
         try {
             // Load embedding model
             this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
 
             // Load generation model (lightweight)
-            // Using LaMini-Flan-T5-248M for reasonable quality/speed balance on CPU
+            // Using LaMini-Flan-T5-78M for speed/memory efficiency on free tier
             this.generator = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-78M');
 
             // Load documents
@@ -35,9 +37,10 @@ class RAGService {
             await this.ingest(articles);
 
             this.isReady = true;
-            console.log('RAG Service Initialized.');
+            console.log('RAG Service Initialized Successfully.');
         } catch (error) {
             console.error('Failed to initialize RAG Service:', error);
+            this.initializationError = error.message;
         }
     }
 
@@ -84,7 +87,10 @@ class RAGService {
     }
 
     async answer(query) {
-        if (!this.isReady) return { answer: "System is still loading...", sources: [] };
+        if (this.initializationError) {
+            return { answer: `System Initialization Failed: ${this.initializationError}`, sources: [] };
+        }
+        if (!this.isReady) return { answer: "System is still loading... (Cold Start: Models are loading into backend memory, please wait 30-60s)", sources: [] };
 
         const relevantDocs = await this.retrieve(query);
 
