@@ -1,45 +1,47 @@
 const { pipeline, env } = require('@xenova/transformers');
-const { v4: uuidv4 } = require('uuid');
+const { OpenRouter } = require("@openrouter/sdk");
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// OPTIMIZATION: Configure environment for low-memory usage
+// OPTIMIZATION: Keep local embeddings (lightweight, ~100MB), use OpenRouter for Generation (Zero RAM)
 env.localModelPath = './models';
 env.allowRemoteModels = true;
-// Disable caching to save memory
 env.useBrowserCache = false;
 env.useFSCache = false;
 
 class RAGService {
     constructor() {
         this.embedder = null;
-        this.generator = null;
+        this.client = null;
         this.documents = [];
         this.isReady = false;
         this.initializationError = null;
     }
 
     async initialize() {
-        console.log('Initializing RAG Service (Local Optimized Mode)...');
+        console.log('Initializing RAG Service (OpenRouter DeepSeek Mode)...');
         this.initializationError = null;
         try {
-            if (global.gc) { global.gc(); } // Force GC if available
+            if (global.gc) { global.gc(); }
 
-            // 1. Load Embedding Model First
-            console.log('Loading Embedding Model...');
-            this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-                quantized: true // Ensure quantization
+            // 1. Check API Key
+            if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.includes("YOUR_")) {
+                console.warn("⚠️ WARNING: OPENROUTER_API_KEY is missing. RAG will fail to generate answers.");
+            }
+
+            // 2. Initialize OpenRouter Client
+            this.client = new OpenRouter({
+                apiKey: process.env.OPENROUTER_API_KEY,
             });
 
-            // 2. Load Generation Model Second (Sequential loading reduces memory spike)
-            console.log('Loading Generation Model...');
-            // Using LaMini-Flan-T5-77M (Confirmed correct name) for maximum efficiency
-            this.generator = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-77M', {
+            // 3. Load Embedding Model (Runs locally, safe for free tier)
+            console.log('Loading Local Embedding Model...');
+            this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
                 quantized: true
             });
 
-            // 3. Load documents
+            // 4. Load Documents
             const articlesPath = path.join(__dirname, 'data', 'articles.json');
             const articlesRaw = fs.readFileSync(articlesPath, 'utf-8');
             const articles = JSON.parse(articlesRaw);
@@ -47,19 +49,13 @@ class RAGService {
             console.log(`Ingesting ${articles.length} articles...`);
             await this.ingest(articles);
 
-            // Free up JSON memory
             this.isReady = true;
-            if (global.gc) { global.gc(); } // Final Cleanup
+            if (global.gc) { global.gc(); }
             console.log('RAG Service Initialized Successfully.');
 
         } catch (error) {
             console.error('Failed to initialize RAG Service:', error);
-            // Enhanced Error Reporting for Memory
-            if (error.message.includes('memory') || error.message.includes('allocation')) {
-                this.initializationError = "Out of Memory: Server lacks RAM for AI models.";
-            } else {
-                this.initializationError = error.message;
-            }
+            this.initializationError = error.message;
         }
     }
 
@@ -104,29 +100,48 @@ class RAGService {
         if (this.initializationError) {
             return { answer: `System Failed: ${this.initializationError}`, sources: [] };
         }
-        if (!this.isReady) return { answer: "System is still waking up... (Loading AI models, please wait ~60s)", sources: [] };
+        if (!this.isReady) return { answer: "System is initializing... (please wait)", sources: [] };
 
         try {
             const relevantDocs = await this.retrieve(query);
+
             const context = relevantDocs.map((doc, index) =>
                 `Source ${index + 1}: ${doc.title}\n${doc.content}`
             ).join('\n\n');
 
-            const prompt = `Answer based on this context only:\n\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
+            const systemPrompt = `You are a helpful and safe yoga wellness assistant. 
+Answer the question based ONLY on the provided context. 
+If the answer is not in the context, say "I don't know based on the provided sources".`;
 
-            const output = await this.generator(prompt, {
-                max_new_tokens: 150,
-                temperature: 0.7,
-                repetition_penalty: 1.2
+            const userContent = `CONTEXT:\n${context}\n\nQUESTION: ${query}`;
+
+            // Call OpenRouter API
+            const stream = await this.client.chat.send({
+                model: "deepseek/deepseek-r1:free", // Using the robust free alias
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userContent }
+                ],
+                stream: true
             });
 
+            // Buffer the stream response
+            let finalAnswer = "";
+            for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content;
+                if (content) {
+                    finalAnswer += content;
+                }
+            }
+
             return {
-                answer: output[0].generated_text,
+                answer: finalAnswer || "No response received from AI.",
                 sources: relevantDocs.map(d => ({ title: d.title, id: d.id }))
             };
         } catch (error) {
-            console.error("Inference Error:", error);
-            return { answer: "Error generating answer (likely memory limit reached).", sources: [] };
+            console.error("OpenRouter Inference Error:", error);
+            // Handle specific OpenRouter errors if needed in future
+            return { answer: "I'm having trouble connecting to the DeepSeek AI. Please check your internet or API Key.", sources: [] };
         }
     }
 }
