@@ -74,9 +74,9 @@ class RAGService {
             const context = docs.map((d, i) => `[${i + 1}] ${d.title}: ${d.content}`).join('\n\n');
             const prompt = `You are a yoga expert. Answer based on this context:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
 
-            // Using Llama 3.1 8B Instruct (Free & Reliable)
+            // Using DeepSeek R1 Distill Llama 70B (User Requested)
             const completion = await this.client.chat.send({
-                model: "meta-llama/llama-3.1-8b-instruct:free",
+                model: "deepseek/deepseek-r1-distill-llama-70b:free",
                 messages: [{ role: "user", content: prompt }]
             });
 
