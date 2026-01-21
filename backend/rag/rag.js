@@ -1,24 +1,21 @@
-const { pipeline, env } = require('@xenova/transformers');
 const { OpenRouter } = require("@openrouter/sdk");
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// Configure local environment for embeddings (Lightweight, ~100MB RAM)
-env.localModelPath = './models';
-env.allowRemoteModels = true;
-env.useBrowserCache = false;
+// OPTIMIZATION: Zero-RAM Architecture for Render Free Tier
+// 1. Retrieval: Keyword/Jaccard Similarity (No heavy embedding models)
+// 2. Generation: OpenRouter Multi-Model Fallback (Gemini -> DeepSeek -> Phi3)
 
 class RAGService {
     constructor() {
-        this.embedder = null;
         this.client = null;
         this.documents = [];
         this.isReady = false;
     }
 
     async initialize() {
-        console.log('Initializing RAG Service (Multi-Model Mode)...');
+        console.log('Initializing RAG Service (Zero-RAM Mode)...');
         try {
             if (!process.env.OPENROUTER_API_KEY) {
                 console.warn("⚠️ OPENROUTER_API_KEY missing.");
@@ -26,53 +23,55 @@ class RAGService {
 
             this.client = new OpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
 
-            // Load lightweight embedding model locally
-            console.log('Loading Embeddings...');
-            this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-                quantized: true
-            });
+            // Load documents INSTANTLY (JSON parse only)
+            const articlesPath = path.join(__dirname, 'data', 'articles.json');
+            const articles = JSON.parse(fs.readFileSync(articlesPath, 'utf-8'));
 
-            // Load and ingest documents
-            const articles = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'articles.json'), 'utf-8'));
-            this.documents = [];
-
-            console.log(`Ingesting ${articles.length} articles...`);
-            for (const article of articles) {
-                const output = await this.embedder(`${article.title}. ${article.content}`, { pooling: 'mean', normalize: true });
-                this.documents.push({ ...article, embedding: output.data });
-            }
+            // Pre-process for keyword search
+            this.documents = articles.map(doc => ({
+                ...doc,
+                tokens: (doc.title + " " + doc.content).toLowerCase().split(/\W+/).filter(w => w.length > 2)
+            }));
 
             this.isReady = true;
-            console.log(`✅ RAG Ready (${this.documents.length} docs).`);
+            console.log(`✅ RAG Ready (${this.documents.length} docs). System memory usage: Low.`);
 
         } catch (error) {
             console.error('❌ RAG Init Failed:', error);
         }
     }
 
-    cosineSimilarity(a, b) {
-        return a.reduce((sum, val, i) => sum + val * b[i], 0);
+    calculateScore(queryTokens, docTokens) {
+        let matchCount = 0;
+        const distinctDocTokens = new Set(docTokens);
+        for (const token of queryTokens) {
+            if (distinctDocTokens.has(token)) {
+                matchCount++;
+            }
+        }
+        return matchCount;
     }
 
     async retrieve(query, k = 3) {
         if (!this.isReady) return [];
-        const output = await this.embedder(query, { pooling: 'mean', normalize: true });
-        const queryEmb = output.data;
 
-        return this.documents
-            .map(doc => ({ doc, score: this.cosineSimilarity(queryEmb, doc.embedding) }))
-            .sort((a, b) => b.score - a.score)
-            .slice(0, k)
-            .map(item => item.doc);
+        const queryTokens = query.toLowerCase().split(/\W+/).filter(w => w.length > 2);
+
+        const scoredDocs = this.documents.map(doc => ({
+            doc,
+            score: this.calculateScore(queryTokens, doc.tokens)
+        }));
+
+        scoredDocs.sort((a, b) => b.score - a.score);
+        return scoredDocs.slice(0, k).map(item => item.doc);
     }
 
     async generateWithRetry(prompt) {
-        // List of free models to try in order of preference
         const models = [
-            "google/gemini-2.0-flash-exp:free",      // Fast, Smart
-            "deepseek/deepseek-r1-distill-llama-70b:free", // Powerful
-            "microsoft/phi-3-mini-128k-instruct:free", // Reliable backup
-            "meta-llama/llama-3.1-8b-instruct:free"    // Popular backup
+            "google/gemini-2.0-flash-exp:free",
+            "deepseek/deepseek-r1-distill-llama-70b:free",
+            "microsoft/phi-3-mini-128k-instruct:free",
+            "meta-llama/llama-3.1-8b-instruct:free"
         ];
 
         for (const model of models) {
@@ -89,10 +88,9 @@ class RAGService {
                 }
             } catch (error) {
                 console.warn(`⚠️ Failed with ${model}: ${error.status || error.message}`);
-                // Continue to next model
             }
         }
-        throw new Error("All AI models are currently busy or offline.");
+        throw new Error("All AI models are currently busy.");
     }
 
     async answer(query) {
@@ -103,7 +101,6 @@ class RAGService {
             const context = docs.map((d, i) => `[${i + 1}] ${d.title}: ${d.content}`).join('\n\n');
             const prompt = `You are a yoga expert. Answer based on this context:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
 
-            // Use the new robust retry mechanism (Pure AI only! No offline text fallback)
             const answerText = await this.generateWithRetry(prompt);
 
             return {
@@ -112,8 +109,8 @@ class RAGService {
             };
         } catch (error) {
             console.error("AI Error:", error);
-            // Standard Error Message - NO TRICKS
-            return { answer: "I'm sorry, I'm having trouble connecting to the AI models right now. Please try again in 30 seconds.", sources: [] };
+            // Honest error message for the user
+            return { answer: "I'm sorry, I'm having trouble connecting to the cloud AI right now. Please try again in 10 seconds.", sources: [] };
         }
     }
 }
