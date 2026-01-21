@@ -112,7 +112,19 @@ class RAGService {
             };
         } catch (error) {
             console.error("AI Error:", error);
-            return { answer: "I'm sorry, all my AI brains are currently overloaded (Rate Limited). Please try again in 30 seconds.", sources: [] };
+
+            // EMERGENCY FALLBACK (Interview Safety Net)
+            // If all AI models fail, we return the retrieved text directly.
+            // This guarantees an answer is ALWAYS shown.
+            if (docs && docs.length > 0) {
+                console.log("⚠️ Activating Emergency Backup Mode (Direct Quote)");
+                return {
+                    answer: "Note: AI service is currently busy. Here is the relevant information from our database:\n\n" + docs[0].content,
+                    sources: docs.map(d => ({ title: d.title, id: d.id }))
+                };
+            }
+
+            return { answer: "I'm sorry, I couldn't connect to the knowledge base right now. Please try again.", sources: [] };
         }
     }
 }
