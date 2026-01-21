@@ -66,28 +66,53 @@ class RAGService {
             .map(item => item.doc);
     }
 
+    async generateWithRetry(prompt) {
+        // List of free models to try in order of preference
+        const models = [
+            "google/gemini-2.0-flash-exp:free",      // Fast, Smart
+            "deepseek/deepseek-r1-distill-llama-70b:free", // Powerful
+            "microsoft/phi-3-mini-128k-instruct:free", // Reliable backup
+            "meta-llama/llama-3.1-8b-instruct:free"    // Popular backup
+        ];
+
+        for (const model of models) {
+            try {
+                console.log(`🤖 Trying model: ${model}...`);
+                const completion = await this.client.chat.send({
+                    model: model,
+                    messages: [{ role: "user", content: prompt }]
+                });
+
+                if (completion?.choices?.[0]?.message?.content) {
+                    console.log(`✅ Success with ${model}`);
+                    return completion.choices[0].message.content;
+                }
+            } catch (error) {
+                console.warn(`⚠️ Failed with ${model}: ${error.status || error.message}`);
+                // Continue to next model
+            }
+        }
+        throw new Error("All AI models are currently busy or offline.");
+    }
+
     async answer(query) {
-        if (!this.isReady) return { answer: "System is still initializing...", sources: [] };
+        if (!this.isReady) return { answer: "System is initializing...", sources: [] };
 
         try {
             const docs = await this.retrieve(query);
             const context = docs.map((d, i) => `[${i + 1}] ${d.title}: ${d.content}`).join('\n\n');
             const prompt = `You are a yoga expert. Answer based on this context:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
 
-            // Using Gemini 2.0 Flash Exp (Benchmark Winner: Fast & Reliable)
-            const completion = await this.client.chat.send({
-                model: "google/gemini-2.0-flash-exp:free",
-                messages: [{ role: "user", content: prompt }]
-            });
+            // Use the new robust retry mechanism
+            const answerText = await this.generateWithRetry(prompt);
 
             return {
-                answer: completion.choices[0]?.message?.content || "No answer generated.",
+                answer: answerText,
                 sources: docs.map(d => ({ title: d.title, id: d.id }))
             };
         } catch (error) {
             console.error("AI Error:", error);
-            // Fallback message handles 429/404
-            return { answer: "The AI brain is currently busy (Rate Limited). Please try again in 10 seconds.", sources: [] };
+            return { answer: "I'm sorry, all my AI brains are currently overloaded (Rate Limited). Please try again in 30 seconds.", sources: [] };
         }
     }
 }
