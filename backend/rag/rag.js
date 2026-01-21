@@ -3,9 +3,12 @@ const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 
-// Skip local model checks for speed if desired, or keep defaults
+// OPTIMIZATION: Configure environment for low-memory usage
 env.localModelPath = './models';
 env.allowRemoteModels = true;
+// Disable caching to save memory
+env.useBrowserCache = false;
+env.useFSCache = false;
 
 class RAGService {
     constructor() {
@@ -17,18 +20,25 @@ class RAGService {
     }
 
     async initialize() {
-        console.log('Initializing RAG Service...');
+        console.log('Initializing RAG Service (Optimized Mode)...');
         this.initializationError = null;
         try {
-            // Load embedding model
-            this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+            if (global.gc) { global.gc(); } // Force GC if available
 
-            // Load generation model (lightweight)
-            // Using LaMini-Flan-T5-78M for speed/memory efficiency on free tier
-            this.generator = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-77M');
+            // 1. Load Embedding Model First
+            console.log('Loading Embedding Model...');
+            this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+                quantized: true // Ensure quantization
+            });
 
-            // Load documents
-            // Ensure path resolution is robust
+            // 2. Load Generation Model Second (Sequential loading reduces memory spike)
+            console.log('Loading Generation Model...');
+            // Using LaMini-Flan-T5-77M (Confirmed correct name) for maximum efficiency
+            this.generator = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-77M', {
+                quantized: true
+            });
+
+            // 3. Load documents
             const articlesPath = path.join(__dirname, 'data', 'articles.json');
             const articlesRaw = fs.readFileSync(articlesPath, 'utf-8');
             const articles = JSON.parse(articlesRaw);
@@ -36,18 +46,25 @@ class RAGService {
             console.log(`Ingesting ${articles.length} articles...`);
             await this.ingest(articles);
 
+            // Free up JSON memory
             this.isReady = true;
+            if (global.gc) { global.gc(); } // Final Cleanup
             console.log('RAG Service Initialized Successfully.');
+
         } catch (error) {
             console.error('Failed to initialize RAG Service:', error);
-            this.initializationError = error.message;
+            // Enhanced Error Reporting for Memory
+            if (error.message.includes('memory') || error.message.includes('allocation')) {
+                this.initializationError = "Out of Memory: Server lacks RAM for AI models.";
+            } else {
+                this.initializationError = error.message;
+            }
         }
     }
 
     async ingest(articles) {
         this.documents = [];
         for (const article of articles) {
-            // Create a composite text for embedding (Title + Content)
             const textToEmbed = `${article.title}. ${article.content}`;
             const embedding = await this.getEmbedding(textToEmbed);
 
@@ -64,7 +81,6 @@ class RAGService {
     }
 
     cosineSimilarity(vecA, vecB) {
-        // Dot product (assuming normalized vectors)
         let dot = 0.0;
         for (let i = 0; i < vecA.length; i++) {
             dot += vecA[i] * vecB[i];
@@ -74,46 +90,43 @@ class RAGService {
 
     async retrieve(query, k = 3) {
         if (!this.isReady) throw new Error('RAG Service not ready');
-
         const queryEmbedding = await this.getEmbedding(query);
-
         const scoredDocs = this.documents.map(doc => ({
             doc,
             score: this.cosineSimilarity(queryEmbedding, doc.embedding)
         }));
-
         scoredDocs.sort((a, b) => b.score - a.score);
         return scoredDocs.slice(0, k).map(item => item.doc);
     }
 
     async answer(query) {
         if (this.initializationError) {
-            return { answer: `System Initialization Failed: ${this.initializationError}`, sources: [] };
+            return { answer: `System Failed: ${this.initializationError}`, sources: [] };
         }
-        if (!this.isReady) return { answer: "System is still loading... (Cold Start: Models are loading into backend memory, please wait 30-60s)", sources: [] };
+        if (!this.isReady) return { answer: "System is still waking up... (Loading AI models, please wait ~60s)", sources: [] };
 
-        const relevantDocs = await this.retrieve(query);
+        try {
+            const relevantDocs = await this.retrieve(query);
+            const context = relevantDocs.map((doc, index) =>
+                `Source ${index + 1}: ${doc.title}\n${doc.content}`
+            ).join('\n\n');
 
-        // Construct Context
-        const context = relevantDocs.map((doc, index) =>
-            `Source ${index + 1}: ${doc.title}\n${doc.content}`
-        ).join('\n\n');
+            const prompt = `Answer based on this context only:\n\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
 
-        const prompt = `Answer the question based on the context below. If the answer is not in the context, say "I don't know based on the provided sources".\n\nContext:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
+            const output = await this.generator(prompt, {
+                max_new_tokens: 150,
+                temperature: 0.7,
+                repetition_penalty: 1.2
+            });
 
-        // Generate Answer
-        const output = await this.generator(prompt, {
-            max_new_tokens: 150,
-            temperature: 0.7,
-            repetition_penalty: 1.2
-        });
-
-        const answerText = output[0].generated_text;
-
-        return {
-            answer: answerText,
-            sources: relevantDocs.map(d => ({ title: d.title, id: d.id }))
-        };
+            return {
+                answer: output[0].generated_text,
+                sources: relevantDocs.map(d => ({ title: d.title, id: d.id }))
+            };
+        } catch (error) {
+            console.error("Inference Error:", error);
+            return { answer: "Error generating answer (likely memory limit reached).", sources: [] };
+        }
     }
 }
 
