@@ -124,7 +124,40 @@ class RAGService {
                 console.warn(`⚠️ Model Busy (${model}): ${error.status || error.message}`);
             }
         }
-        throw new Error("All AI models are currently overwhelmed.");
+        // 2. Try Hugging Face API (User Provided Key)
+        if (process.env.HF_API_KEY) {
+            try {
+                console.log(`🤖 Trying Hugging Face (Mistral-7B)...`);
+                const hfResponse = await fetch(
+                    "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${process.env.HF_API_KEY}`
+                        },
+                        body: JSON.stringify({
+                            inputs: `<s>[INST] ${prompt} [/INST]`,
+                            parameters: { max_new_tokens: 500, return_full_text: false }
+                        })
+                    }
+                );
+
+                if (hfResponse.ok) {
+                    const data = await hfResponse.json();
+                    if (data[0] && data[0].generated_text) {
+                        console.log(`✅ Success via Hugging Face.`);
+                        return data[0].generated_text;
+                    }
+                } else {
+                    console.warn(`⚠️ HF Fail: ${await hfResponse.text()}`);
+                }
+            } catch (e) {
+                console.warn(`⚠️ HF Error: ${e.message}`);
+            }
+        }
+
+        throw new Error("All AI models (OpenRouter + Hugging Face) are busy.");
     }
 
     async answer(query) {
