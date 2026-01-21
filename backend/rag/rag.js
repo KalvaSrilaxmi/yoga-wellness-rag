@@ -2,6 +2,7 @@ const { pipeline, env } = require('@xenova/transformers');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 // OPTIMIZATION: Configure environment for low-memory usage
 env.localModelPath = './models';
@@ -20,7 +21,7 @@ class RAGService {
     }
 
     async initialize() {
-        console.log('Initializing RAG Service (Optimized Mode)...');
+        console.log('Initializing RAG Service (Local Optimized Mode)...');
         this.initializationError = null;
         try {
             if (global.gc) { global.gc(); } // Force GC if available
