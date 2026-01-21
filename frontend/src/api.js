@@ -22,12 +22,20 @@ export const askQuestion = async (query) => {
         });
         return response.data;
     } catch (error) {
-        // If it's a Safety Violation (403), throw it so the UI shows the Warning Card.
+        // 1. Safety Violation (403) - Pass to UI for Red Warning
         if (error.response && error.response.status === 403) {
             throw error;
         }
+
+        // 2. Timeout / Network Error (Common on Free Tier Cold Starts)
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout') || !error.response) {
+            console.error('Timeout/Network Error:', error);
+            throw new Error("Server is waking up (Free Tier). Please wait 30 seconds and try again.");
+        }
+
+        // 3. Other Server Errors
         console.error('API Error:', error);
-        throw error;
+        throw new Error("Server encountered an error. Please try again.");
     }
 };
 
