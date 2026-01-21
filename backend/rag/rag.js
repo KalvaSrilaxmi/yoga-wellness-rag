@@ -18,7 +18,7 @@ class RAGService {
     }
 
     async initialize() {
-        console.log('Initializing RAG Service (Llama 3.1 Mode)...');
+        console.log('Initializing RAG Service (Multi-Model Mode)...');
         try {
             if (!process.env.OPENROUTER_API_KEY) {
                 console.warn("⚠️ OPENROUTER_API_KEY missing.");
@@ -43,7 +43,7 @@ class RAGService {
             }
 
             this.isReady = true;
-            console.log(`✅ RAG Ready (${this.documents.length} docs). Using Llama 3.1 8B.`);
+            console.log(`✅ RAG Ready (${this.documents.length} docs).`);
 
         } catch (error) {
             console.error('❌ RAG Init Failed:', error);
@@ -103,7 +103,7 @@ class RAGService {
             const context = docs.map((d, i) => `[${i + 1}] ${d.title}: ${d.content}`).join('\n\n');
             const prompt = `You are a yoga expert. Answer based on this context:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
 
-            // Use the new robust retry mechanism
+            // Use the new robust retry mechanism (Pure AI only! No offline text fallback)
             const answerText = await this.generateWithRetry(prompt);
 
             return {
@@ -112,19 +112,8 @@ class RAGService {
             };
         } catch (error) {
             console.error("AI Error:", error);
-
-            // EMERGENCY FALLBACK (Interview Safety Net)
-            // If all AI models fail, we return the retrieved text directly.
-            // This guarantees an answer is ALWAYS shown.
-            if (docs && docs.length > 0) {
-                console.log("⚠️ Activating Emergency Backup Mode (Direct Quote)");
-                return {
-                    answer: "Note: AI service is currently busy. Here is the relevant information from our database:\n\n" + docs[0].content,
-                    sources: docs.map(d => ({ title: d.title, id: d.id }))
-                };
-            }
-
-            return { answer: "I'm sorry, I couldn't connect to the knowledge base right now. Please try again.", sources: [] };
+            // Standard Error Message - NO TRICKS
+            return { answer: "I'm sorry, I'm having trouble connecting to the AI models right now. Please try again in 30 seconds.", sources: [] };
         }
     }
 }

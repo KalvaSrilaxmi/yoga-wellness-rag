@@ -15,6 +15,7 @@ const API_URL = BASE_URL;
 export const askQuestion = async (query) => {
     try {
         const response = await axios.post(`${API_URL}/ask`, { query }, {
+            timeout: 90000, // 90 Seconds timeout for Render Free Tier Cold Starts
             headers: {
                 'Content-Type': 'application/json',
                 'Bypass-Tunnel-Reminder': 'true',
