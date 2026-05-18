@@ -8,7 +8,8 @@ const connectDB = async () => {
         console.log('✅ MongoDB Atlas Connected Successfully');
     } catch (err) {
         console.error('❌ MongoDB Atlas Connection Error:', err.message);
-        process.exit(1);
+        console.log('⚠️  Continuing without MongoDB - logging disabled');
+        // process.exit(1); // Commented out to allow server to run without MongoDB
     }
 };
 

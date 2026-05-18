@@ -1,186 +1,129 @@
-const { OpenRouter } = require("@openrouter/sdk");
+const { pipeline, env } = require('@xenova/transformers');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// ARCHITECTURE: AI-Enhanced Retrieval (The "Real AI" Solution)
-// 1. Retrieval: AI Generates Keywords (OpenRouter) -> Jaccard Text Search
-//    - Why? Gives semantic understanding WITHOUT heavy local models.
-// 2. Generation: Multi-Model Fallback (Gemini -> DeepSeek -> Phi3)
-//    - Why? 99.9% Reliability even on free tier.
+// LOCAL CONFIGURATION 
+// Using local models avoids all external API issues and connectivity problems.
+// Models:
+// 1. Embeddings: Xenova/all-MiniLM-L6-v2 (Small, fast)
+// 2. Generation: Xenova/LaMini-Flan-T5-248M (The 'Small' variant that actually works)
+
+// Configure transformers to run locally
+env.allowLocalModels = false;
+env.useBrowserCache = false;
 
 class RAGService {
     constructor() {
-        this.client = null;
+        this.embedder = null;
+        this.generator = null;
         this.documents = [];
         this.isReady = false;
+        this.initializationError = null;
     }
 
     async initialize() {
-        console.log('Initializing RAG Service (AI-Enhanced Retrieval Mode)...');
+        console.log('Initializing Local RAG Service...');
         try {
-            if (!process.env.OPENROUTER_API_KEY) {
-                console.warn("⚠️ OPENROUTER_API_KEY missing.");
-            } else {
-                console.log("✅ API Key Detected");
-            }
+            // 1. Load Embedding Model
+            console.log('Loading Embedding Model...');
+            this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+                quantized: true
+            });
 
-            this.client = new OpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
+            // 2. Load Generation Model
+            // NOTE: Switched to 248M because 78M is not hosted on HF by Xenova
+            console.log('Loading Generation Model (LaMini-Flan-T5-248M)...');
+            this.generator = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-248M', {
+                quantized: true
+            });
 
-            // Load documents INSTANTLY
+            // 3. Load Documents
             const articlesPath = path.join(__dirname, 'data', 'articles.json');
             const articles = JSON.parse(fs.readFileSync(articlesPath, 'utf-8'));
 
-            // Pre-process for fast matching
-            this.documents = articles.map(doc => ({
-                ...doc,
-                searchIndex: (doc.title + " " + doc.content).toLowerCase()
-            }));
+            console.log('Ingesting articles...');
+            this.documents = [];
+            for (const article of articles) {
+                // Pre-compute embeddings
+                const output = await this.embedder(article.title + ". " + article.content, { pooling: 'mean', normalize: true });
+                this.documents.push({
+                    ...article,
+                    embedding: output.data
+                });
+            }
 
             this.isReady = true;
-            console.log(`✅ RAG Ready (${this.documents.length} docs). System memory usage: Ultra Low.`);
+            console.log('✅ RAG Service Ready (Local Mode)');
 
         } catch (error) {
             console.error('❌ RAG Init Failed:', error);
+            this.initializationError = error.message;
         }
     }
 
-    // AI BRAIN: "Expand" the query into semantic concepts
-    async expandQuery(query) {
-        try {
-            console.log(`🧠 AI Thinking (Query Expansion) for: "${query}"...`);
-            const completion = await this.client.chat.send({
-                model: "google/gemini-2.0-flash-exp:free",
-                messages: [{
-                    role: "user",
-                    content: `You are a search engine optimizer for a Yoga database. 
-                    User Query: "${query}"
-                    Task: Output exactly 5 key English words or simple phrases that represent the core intent of this query. 
-                    Include synonyms (e.g. if 'pain', add 'relief', 'hurt').
-                    Output format: comma-separated list ONLY. No explanations.`
-                }]
-            });
-
-            const content = completion?.choices?.[0]?.message?.content || "";
-            const keywords = content.toLowerCase().split(/[,.\n]+/).map(w => w.trim()).filter(w => w.length > 2);
-
-            if (keywords.length > 0) {
-                console.log(`   -> Extracted: [${keywords.join(", ")}]`);
-                return keywords;
-            }
-        } catch (e) {
-            console.warn("⚠️ Query expansion passed, using raw query.");
+    // Mathematical similarity check
+    cosineSimilarity(a, b) {
+        let dotProduct = 0;
+        let normA = 0;
+        let normB = 0;
+        for (let i = 0; i < a.length; i++) {
+            dotProduct += a[i] * b[i];
+            normA += a[i] * a[i];
+            normB += b[i] * b[i];
         }
-        return query.toLowerCase().split(/\W+/).filter(w => w.length > 2);
-    }
-
-    calculateScore(keywords, docIndex) {
-        let matchCount = 0;
-        for (const word of keywords) {
-            if (docIndex.includes(word)) {
-                matchCount++;
-            }
-        }
-        return matchCount;
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
     async retrieve(query, k = 3) {
-        if (!this.isReady) return [];
+        if (!this.embedder) return [];
 
-        // 1. Get AI Keywords
-        const keywords = await this.expandQuery(query);
+        const output = await this.embedder(query, { pooling: 'mean', normalize: true });
+        const queryEmbedding = output.data;
 
-        // 2. Search Docs
         const scoredDocs = this.documents.map(doc => ({
             doc,
-            score: this.calculateScore(keywords, doc.searchIndex)
+            score: this.cosineSimilarity(queryEmbedding, doc.embedding) // Using embedding comparison
         }));
 
+        // Sort by highest score
         scoredDocs.sort((a, b) => b.score - a.score);
+
         return scoredDocs.slice(0, k).map(item => item.doc);
     }
 
-    async generateWithRetry(prompt) {
-        const models = [
-            "google/gemini-2.0-flash-exp:free",
-            "deepseek/deepseek-r1-distill-llama-70b:free",
-            "microsoft/phi-3-mini-128k-instruct:free",
-            "meta-llama/llama-3.1-8b-instruct:free"
-        ];
-
-        for (const model of models) {
-            try {
-                console.log(`🤖 Generative AI (${model})...`);
-                const completion = await this.client.chat.send({
-                    model: model,
-                    messages: [{ role: "user", content: prompt }]
-                });
-
-                if (completion?.choices?.[0]?.message?.content) {
-                    console.log(`✅ AI Response Received.`);
-                    return completion.choices[0].message.content;
-                }
-            } catch (error) {
-                console.warn(`⚠️ Model Busy (${model}): ${error.status || error.message}`);
-            }
-        }
-        // 2. Try Hugging Face API (User Provided Key)
-        if (process.env.HF_API_KEY) {
-            try {
-                console.log(`🤖 Trying Hugging Face (Mistral-7B)...`);
-                const hfResponse = await fetch(
-                    "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${process.env.HF_API_KEY}`
-                        },
-                        body: JSON.stringify({
-                            inputs: `<s>[INST] ${prompt} [/INST]`,
-                            parameters: { max_new_tokens: 500, return_full_text: false }
-                        })
-                    }
-                );
-
-                if (hfResponse.ok) {
-                    const data = await hfResponse.json();
-                    if (data[0] && data[0].generated_text) {
-                        console.log(`✅ Success via Hugging Face.`);
-                        return data[0].generated_text;
-                    }
-                } else {
-                    console.warn(`⚠️ HF Fail: ${await hfResponse.text()}`);
-                }
-            } catch (e) {
-                console.warn(`⚠️ HF Error: ${e.message}`);
-            }
-        }
-
-        throw new Error("All AI models (OpenRouter + Hugging Face) are busy.");
-    }
-
     async answer(query) {
-        if (!this.isReady) return { answer: "System is initializing...", sources: [] };
+        if (!this.isReady) {
+            return {
+                answer: "The AI is still warming up. Please wait a moment...",
+                sources: []
+            };
+        }
 
         try {
-            // STEP 1: Search
+            // 1. Find relevant docs
             const docs = await this.retrieve(query);
 
-            // STEP 2: Context
+            // 2. Prepare context
             const context = docs.map((d, i) => `[${i + 1}] ${d.title}: ${d.content}`).join('\n\n');
-            const prompt = `You are a yoga expert. Answer based on this context:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
+            const prompt = `Question: ${query}\nContext: ${context}\nAnswer:`;
 
-            // STEP 3: Generate
-            const answerText = await this.generateWithRetry(prompt);
+            // 3. Generate Answer Locally
+            console.log("Generating answer locally...");
+            const output = await this.generator(prompt, {
+                max_new_tokens: 150,
+                temperature: 0.7,
+                repetition_penalty: 1.2
+            });
 
             return {
-                answer: answerText,
+                answer: output[0].generated_text,
                 sources: docs.map(d => ({ title: d.title, id: d.id }))
             };
+
         } catch (error) {
-            console.error("AI Pipeline Error:", error);
-            return { answer: "I'm sorry, I'm having trouble connecting to the AI brain right now. Please try again in 10 seconds.", sources: [] };
+            console.error("Generation Error:", error);
+            return { answer: "I encountered an error generating the answer.", sources: [] };
         }
     }
 }

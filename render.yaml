@@ -10,4 +10,22 @@ services:
         value: 10000
       - key: MONGODB_URI
         sync: false
-    autoDeploy: false
+    autoDeploy: true
+
+  - type: web
+    name: yoga-rag-frontend
+    env: static
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: yoga-rag-backend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    autoDeploy: true
