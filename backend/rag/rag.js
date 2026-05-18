@@ -2,6 +2,7 @@ const { pipeline, env } = require('@xenova/transformers');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
+const { OpenRouter } = require("@openrouter/sdk");
 
 // LOCAL CONFIGURATION 
 // Using local models avoids all external API issues and connectivity problems.
@@ -16,7 +17,7 @@ env.useBrowserCache = false;
 class RAGService {
     constructor() {
         this.embedder = null;
-        this.generator = null;
+        this.openrouter = null;
         this.documents = [];
         this.isReady = false;
         this.initializationError = null;
@@ -31,12 +32,12 @@ class RAGService {
                 quantized: true
             });
 
-            // 2. Load Generation Model
-            // NOTE: Switched to 248M because 78M is not hosted on HF by Xenova
-            console.log('Loading Generation Model (LaMini-Flan-T5-248M)...');
-            this.generator = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-248M', {
-                quantized: true
-            });
+            // 2. Initialize OpenRouter
+            console.log('Initializing OpenRouter Generation Client...');
+            if (!process.env.OPENROUTER_API_KEY) {
+                console.warn("⚠️ OPENROUTER_API_KEY is missing!");
+            }
+            this.openrouter = new OpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
 
             // 3. Load Documents
             const articlesPath = path.join(__dirname, 'data', 'articles.json');
@@ -108,16 +109,18 @@ class RAGService {
             const context = docs.map((d, i) => `[${i + 1}] ${d.title}: ${d.content}`).join('\n\n');
             const prompt = `Question: ${query}\nContext: ${context}\nAnswer:`;
 
-            // 3. Generate Answer Locally
-            console.log("Generating answer locally...");
-            const output = await this.generator(prompt, {
-                max_new_tokens: 150,
-                temperature: 0.7,
-                repetition_penalty: 1.2
+            // 3. Generate Answer via OpenRouter
+            console.log("Generating answer via OpenRouter...");
+            const completion = await this.openrouter.chat.send({
+                model: "google/gemini-2.0-flash-exp:free",
+                messages: [
+                    { role: "system", content: "You are a helpful wellness and yoga assistant. Answer the user's question accurately using ONLY the provided context." },
+                    { role: "user", content: prompt }
+                ]
             });
 
             return {
-                answer: output[0].generated_text,
+                answer: completion?.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.",
                 sources: docs.map(d => ({ title: d.title, id: d.id }))
             };
 
