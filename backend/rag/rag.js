@@ -112,7 +112,8 @@ class RAGService {
             // 3. Generate Answer via OpenRouter
             console.log("Generating answer via OpenRouter...");
             const completion = await this.openrouter.chat.send({
-                model: "meta-llama/llama-3.1-8b-instruct:free",
+                model: "openrouter/auto",
+                max_tokens: 150,
                 messages: [
                     { role: "system", content: "You are a helpful wellness and yoga assistant. Answer the user's question accurately using ONLY the provided context." },
                     { role: "user", content: prompt }
