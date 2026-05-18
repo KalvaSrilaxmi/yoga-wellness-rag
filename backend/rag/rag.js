@@ -112,7 +112,7 @@ class RAGService {
             // 3. Generate Answer via OpenRouter
             console.log("Generating answer via OpenRouter...");
             const completion = await this.openrouter.chat.send({
-                model: "google/gemini-2.0-flash-exp:free",
+                model: "meta-llama/llama-3.1-8b-instruct:free",
                 messages: [
                     { role: "system", content: "You are a helpful wellness and yoga assistant. Answer the user's question accurately using ONLY the provided context." },
                     { role: "user", content: prompt }
